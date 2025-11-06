@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Crush Mega</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .animated-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Floating particles in background */
+        .particle {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 20s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(100vh) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) translateX(100px); opacity: 0; }
+        }
+
+        /* Game Board Styling */
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: 4px;
+            background: linear-gradient(135deg, #a8dadc 0%, #457b9d 100%);
+            border: 8px solid #1d3557;
+            border-radius: 16px;
+            padding: 8px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            width: 90vw;
+            height: 90vw;
+            max-width: 550px;
+            max-height: 550px;
+            position: relative;
+        }
+
+        .fruit-cell {
+            background: linear-gradient(135deg, #f1faee 0%, #e9f5f9 100%);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            font-size: clamp(20px, 6vw, 45px);
+            user-select: none;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .fruit-cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .fruit-cell.selected {
+            background: linear-gradient(135deg, #fca5a5 0%, #f87171 100%);
+            transform: scale(1.15);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+            animation: pulse-select 0.6s ease-in-out infinite;
+        }
+
+        @keyframes pulse-select {
+            0%, 100% { transform: scale(1.15); }
+            50% { transform: scale(1.2); }
+        }
+
+        .fruit-cell.matched {
+            animation: explode-and-fade 0.6s forwards;
+        }
+
+        @keyframes explode-and-fade {
+            0% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.3) rotate(180deg);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        /* Hint animation */
+        .fruit-cell.hint {
+            animation: pulse-select 0.8s ease-in-out 3; /* Pulse 3 times */
+        }
+
+        .fruit-cell.invalid {
+            animation: shake-hard 0.4s forwards;
+        }
+
+        @keyframes shake-hard {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+            20%, 40%, 60%, 80% { transform: translateX(8px); }
+        }
+
+        .fruit-cell.new-fruit {
+            animation: drop-bounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+        }
+
+        @keyframes drop-bounce {
+            0% {
+                transform: translateY(-300px) scale(0.3);
+                opacity: 0;
+            }
+            60% {
+                transform: translateY(10px) scale(1.1);
+                opacity: 1;
+            }
+            80% {
+                transform: translateY(-5px) scale(0.95);
+            }
+            100% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Special fruit effects */
+        .fruit-cell.special-bomb {
+            background: radial-gradient(circle, #fbbf24 0%, #f59e0b 100%);
+            animation: glow-bomb 1s ease-in-out infinite;
+        }
+
+        @keyframes glow-bomb {
+            0%, 100% { box-shadow: 0 0 10px #fbbf24; }
+            50% { box-shadow: 0 0 25px #f59e0b, 0 0 40px #fbbf24; }
+        }
+
+        /* ... other special fruit styles ... */
+
+        /* Score popup animation */
+        .score-popup {
+            position: absolute;
+            font-weight: bold;
+            font-size: 24px;
+            color: #fbbf24;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            animation: score-float 1s ease-out forwards;
+            z-index: 1000;
+        }
+
+        @keyframes score-float {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        /* Modal animations */
+        .modal-enter {
+            animation: modal-slide-in 0.4s ease-out forwards;
+        }
+
+        @keyframes modal-slide-in {
+            0% {
+                transform: scale(0.7) translateY(-50px);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Progress bar animations */
+        .progress-bar-fill {
+            transition: width 0.3s ease-in-out;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            height: 100%;
+            border-radius: 9999px;
+        }
+
+        /* Button hover effects */
+        .btn-3d {
+            transform: translateY(0);
+            box-shadow: 0 6px 0 0 rgba(0, 0, 0, 0.2);
+            transition: all 0.1s ease;
+        }
+
+        .btn-3d:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.2);
+        }
+        
+        /* ... other styles from your file ... */
+        
+        /* Locked level indicator */
+        .level-locked {
+            position: relative;
+            filter: grayscale(1) brightness(0.5);
+            cursor: not-allowed;
+        }
+
+        .level-locked::before {
+            content: '🔒';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            z-index: 10;
+        }
+        
+        /* Active powerup button */
+        .powerup-btn.active {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .game-board {
+                max-width: 95vw;
+                max-height: 95vw;
+            }
+        }
+
+    </style>
+</head>
+<body class="animated-bg min-h-screen">
+    
+    <!-- Background Particles -->
+    <div id="particles-container"></div>
+
+    <!-- Main Menu Screen -->
+    <div id="main-menu" class="fixed inset-0 flex items-center justify-center z-50">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full mx-4 modal-enter">
+            <h1 class="text-6xl font-black text-center mb-8 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                FRUIT CRUSH MEGA
+            </h1>
+            
+            <div class="space-y-4">
+                <button id="btn-play" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-6 rounded-xl font-bold text-2xl btn-3d hover:from-green-600 hover:to-emerald-700">
+                    🎮 PLAY GAME
+                </button>
+                
+                <button id="btn-levels" class="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-4 rounded-xl font-bold text-xl btn-3d hover:from-blue-600 hover:to-cyan-700">
+                    📊 LEVEL SELECT
+                </button>
+                
+                <button id="btn-shop" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-4 rounded-xl font-bold text-xl btn-3d hover:from-yellow-600 hover:to-orange-700">
+                    🛒 SHOP
+                </button>
+                
+                <button id="btn-achievements" class="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-4 rounded-xl font-bold text-xl btn-3d hover:from-purple-600 hover:to-pink-700">
+                    🏆 ACHIEVEMENTS
+                </button>
+                
+                <button id="btn-settings" class="w-full bg-gradient-to-r from-gray-500 to-gray-600 text-white py-4 rounded-xl font-bold text-xl btn-3d hover:from-gray-600 hover:to-gray-700">
+                    ⚙️ SETTINGS
+                </button>
+            </div>
+
+            <div class="mt-8 text-center">
+                <p class="text-gray-600 font-semibold">💰 Coins: <span id="menu-coins" class="text-yellow-600 font-bold">0</span></p>
+                <p class="text-gray-600 font-semibold">⭐ Max Level: <span id="menu-level" class="text-blue-600 font-bold">1</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="hidden fixed inset-0 overflow-y-auto">
+        <div class="min-h-screen p-4 flex flex-col items-center justify-center">
+            
+            <!-- Top Bar -->
+            <div class="w-full max-w-2xl mb-4">
+                <div class="bg-white rounded-xl shadow-xl p-4 flex justify-between items-center">
+                    <button id="btn-back-to-menu" class="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 transition">
+                        ← MENU
+                    </button>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="text-center">
+                            <span class="block text-xs font-medium text-gray-600">LEVEL</span>
+                            <span id="current-level-display" class="text-2xl font-black text-blue-600">1</span>
+                        </div>
+                        <div class="text-center">
+                            <span class="block text-xs font-medium text-gray-600">COINS</span>
+                            <span id="game-coins" class="text-2xl font-black text-yellow-600">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Game Container -->
+            <div class="w-full max-w-2xl">
+                <div class="bg-white rounded-3xl shadow-2xl p-6">
+                    
+                    <!-- Level Info & Objectives -->
+                    <div class="mb-4 bg-gradient-to-r from-purple-100 to-pink-100 p-4 rounded-xl">
+                        <h2 id="level-title" class="text-2xl font-bold text-purple-800 mb-2">Level 1: Fruit Paradise</h2>
+                        <div id="level-objectives" class="text-sm text-purple-700">
+                            <!-- Objectives loaded by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Stats Bar -->
+                    <div class="grid grid-cols-4 gap-3 mb-4">
+                        <div class="bg-gradient-to-br from-blue-100 to-blue-200 p-3 rounded-xl text-center">
+                            <span class="block text-xs font-medium text-blue-700">SCORE</span>
+                            <span id="score" class="text-2xl font-black text-blue-900">0</span>
+                        </div>
+                        <div class="bg-gradient-to-br from-red-100 to-red-200 p-3 rounded-xl text-center">
+                            <span class="block text-xs font-medium text-red-700">MOVES</span>
+                            <span id="moves" class="text-2xl font-black text-red-900">25</span>
+                        </div>
+                        <div class="bg-gradient-to-br from-green-100 to-green-200 p-3 rounded-xl text-center">
+                            <span class="block text-xs font-medium text-green-700">TARGET</span>
+                            <span id="target" class="text-2xl font-black text-green-900">1000</span>
+                        </div>
+                        <div class="bg-gradient-to-br from-yellow-100 to-yellow-200 p-3 rounded-xl text-center">
+                            <span class="block text-xs font-medium text-yellow-700">COMBO</span>
+                            <span id="combo" class="text-2xl font-black text-yellow-900">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mb-4">
+                        <div class="flex justify-between text-xs font-semibold text-gray-600 mb-1">
+                            <span>Progress</span>
+                            <span id="progress-percent">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                            <div id="progress-bar" class="progress-bar-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Power-ups Bar -->
+                    <div class="mb-4 flex justify-around bg-gray-50 p-3 rounded-xl">
+                        <button id="powerup-bomb" data-powerup="bomb" class="powerup-btn bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">
+                            💣 <span class="powerup-count">0</span>
+                        </button>
+                        <button id="powerup-lightning" data-powerup="lightning" class="powerup-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">
+                            ⚡ <span class="powerup-count">0</span>
+                        </button>
+                        <button id="powerup-rainbow" data-powerup="rainbow" class="powerup-btn bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">
+                            🌈 <span class="powerup-count">0</span>
+                        </button>
+                        <button id="powerup-shuffle" data-powerup="shuffle" class="powerup-btn bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">
+                            🔄 <span class="powerup-count">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Game Board Container -->
+                    <div class="flex justify-center relative">
+                        <div id="game-board" class="game-board">
+                            <!-- Fruit cells generated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Hint Button -->
+                    <div class="mt-4 text-center">
+                        <button id="btn-hint" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:from-indigo-600 hover:to-purple-700 transition">
+                            💡 HINT (Cost: 50 coins)
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Select Screen -->
+    <div id="level-select-screen" class="hidden fixed inset-0 overflow-y-auto bg-gray-900 bg-opacity-75 z-60">
+        <div class="min-h-screen p-4 flex items-center justify-center">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl w-full modal-enter">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-4xl font-black text-purple-800">LEVEL SELECT</h2>
+                    <button id="btn-close-levels" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition">
+                        CLOSE
+                    </button>
+                </div>
+                
+                <div id="levels-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 max-h-96 overflow-y-auto">
+                    <!-- Level buttons generated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Other Screens (Shop, Achievements, Settings) - Stubbed -->
+    <div id="shop-screen" class="hidden fixed inset-0 overflow-y-auto bg-gray-900 bg-opacity-75 z-60">
+        <div class="min-h-screen p-4 flex items-center justify-center">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl w-full modal-enter">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-4xl font-black text-yellow-800">SHOP</h2>
+                    <button class="btn-close-modal bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition">
+                        CLOSE
+                    </button>
+                </div>
+                <p>Buy power-ups with your coins here!</p>
+                <!-- Shop items would go here -->
+            </div>
+        </div>
+    </div>
+    <div id="achievements-screen" class="hidden fixed inset-0 overflow-y-auto bg-gray-900 bg-opacity-75 z-60">
+        <div class="min-h-screen p-4 flex items-center justify-center">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl w-full modal-enter">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-4xl font-black text-purple-800">ACHIEVEMENTS</h2>
+                    <button class="btn-close-modal bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition">
+                        CLOSE
+                    </button>
+                </div>
+                <p>Track your accomplishments!</p>
+                <!-- Achievements list would go here -->
+            </div>
+        </div>
+    </div>
+    <div id="settings-screen" class="hidden fixed inset-0 overflow-y-auto bg-gray-900 bg-opacity-75 z-60">
+        <div class="min-h-screen p-4 flex items-center justify-center">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl w-full modal-enter">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-4xl font-black text-gray-800">SETTINGS</h2>
+                    <button class="btn-close-modal bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition">
+                        CLOSE
+                    </button>
+                </div>
+                <p>Toggle sound, music, and reset progress.</p>
+                <button id="btn-reset-progress" class="mt-4 bg-red-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 transition">
+                    RESET ALL PROGRESS
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Game Over / Level Complete Modals -->
+    <div id="end-game-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-sm text-center modal-enter">
+            <h2 id="modal-title" class="text-3xl font-bold text-red-600 mb-4">GAME OVER!</h2>
+            <p id="modal-subtitle" class="text-lg text-gray-700 mb-2">You ran out of moves.</p>
+            <p class="text-lg text-gray-700 mb-2">Your final score:</p>
+            <p id="final-score" class="text-5xl font-bold text-gray-900 mb-6">0</p>
+            <div id="star-rating" class="text-3xl mb-4">
+                <!-- Stars added by JS -->
+            </div>
+            <button id="btn-modal-next" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold text-lg hover:bg-blue-700 transition mb-2">
+                Play Again
+            </button>
+            <button id="btn-modal-menu" class="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold text-lg hover:bg-gray-700 transition">
+                Main Menu
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Game Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- Game Constants ---
+            const ROWS = 8;
+            const COLS = 8;
+            const FRUITS = ['🍎', '🍊', '🍋', '🍇', '🍓', '🍒', '🍍', '🥝']; // Added more fruits
+            const HINT_COST = 50;
+            const SAVE_KEY = 'fruitCrushMegaSave';
+
+            // --- Level Definitions ---
+            const LEVELS = [
+                { id: 1, title: 'Fruit Paradise', moves: 25, targetScore: 1000, objectives: { score: 1000 } },
+                { id: 2, title: 'Berry Bash', moves: 20, targetScore: 1500, objectives: { score: 1500 } },
+                { id: 3, title: 'Citrus Squeeze', moves: 20, targetScore: 2000, objectives: { '🍓': 20 } },
+                { id: 4, title: 'Grapevine', moves: 18, targetScore: 2500, objectives: { '🍇': 25, '🍋': 25 } },
+                { id: 5, title: 'Tutti Frutti', moves: 15, targetScore: 3000, objectives: { score: 3000 } },
+                // Add up to 20 levels
+                ...Array(15).fill(0).map((_, i) => ({
+                    id: i + 6,
+                    title: `Challenge ${i + 6}`,
+                    moves: 15 - Math.floor(i / 5), // Decrease moves for harder levels
+                    targetScore: 3000 + (i + 1) * 500,
+                    objectives: { score: 3000 + (i + 1) * 500 }
+                }))
+            ];
+
+            // --- DOM Elements ---
+            const screens = {
+                menu: document.getElementById('main-menu'),
+                game: document.getElementById('game-screen'),
+                levels: document.getElementById('level-select-screen'),
+                shop: document.getElementById('shop-screen'),
+                achievements: document.getElementById('achievements-screen'),
+                settings: document.getElementById('settings-screen'),
+            };
+            const gameBoardEl = document.getElementById('game-board');
+            const scoreEl = document.getElementById('score');
+            const movesEl = document.getElementById('moves');
+            const targetEl = document.getElementById('target');
+            const comboEl = document.getElementById('combo');
+            const progressBar = document.getElementById('progress-bar');
+            const progressPercent = document.getElementById('progress-percent');
+            const menuCoinsEl = document.getElementById('menu-coins');
+            const menuLevelEl = document.getElementById('menu-level');
+            const gameCoinsEl = document.getElementById('game-coins');
+            const currentLevelDisplay = document.getElementById('current-level-display');
+            const levelTitleEl = document.getElementById('level-title');
+            const levelObjectivesEl = document.getElementById('level-objectives');
+            const levelsGridEl = document.getElementById('levels-grid');
+            const hintButton = document.getElementById('btn-hint');
+
+            // Modals
+            const endGameModal = document.getElementById('end-game-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalSubtitle = document.getElementById('modal-subtitle');
+            const finalScoreEl = document.getElementById('final-score');
+            const starRatingEl = document.getElementById('star-rating');
+            const modalNextBtn = document.getElementById('btn-modal-next');
+            const modalMenuBtn = document.getElementById('btn-modal-menu');
+
+            // --- Game State ---
+            let board = [];
+            let score = 0;
+            let moves = 0;
+            let currentLevel = 1;
+            let combo = 0;
+            let targetScore = 1000;
+            let selectedFruit = null;
+            let isProcessing = false;
+            
+            // --- Persistent State ---
+            let coins = 0;
+            let maxUnlockedLevel = 1;
+            let powerups = {
+                bomb: 0,
+                lightning: 0,
+                rainbow: 0,
+                shuffle: 0
+            };
+            let activePowerup = null; // 'bomb', 'lightning', etc.
+
+            // --- State Persistence Functions ---
+            function loadGameState() {
+                const savedData = localStorage.getItem(SAVE_KEY);
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    coins = data.coins || 0;
+                    maxUnlockedLevel = data.maxUnlockedLevel || 1;
+                    powerups = data.powerups || { bomb: 0, lightning: 0, rainbow: 0, shuffle: 0 };
+                }
+                updateMenuUI();
+            }
+
+            function saveGameState() {
+                const data = { coins, maxUnlockedLevel, powerups };
+                localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+                updateMenuUI(); // Update menu in case it's visible
+            }
+            
+            function resetGameProgress() {
+                if (confirm("Are you sure you want to reset all your progress? This cannot be undone.")) {
+                    localStorage.removeItem(SAVE_KEY);
+                    coins = 0;
+                    maxUnlockedLevel = 1;
+                    powerups = { bomb: 0, lightning: 0, rainbow: 0, shuffle: 0 };
+                    loadLevel(1);
+                    updateMenuUI();
+                    populateLevelSelect();
+                    showScreen('menu');
+                }
+            }
+            
+            // --- Screen Management ---
+            function showScreen(screenName) {
+                Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+                if (screens[screenName]) {
+                    screens[screenName].classList.remove('hidden');
+                }
+                // Special actions on screen show
+                if (screenName === 'menu') {
+                    updateMenuUI();
+                }
+                if (screenName === 'levels') {
+                    populateLevelSelect();
+                }
+            }
+
+            // --- UI Update Functions ---
+            function updateMenuUI() {
+                menuCoinsEl.textContent = coins;
+                menuLevelEl.textContent = maxUnlockedLevel;
+            }
+
+            function updateGameStats() {
+                scoreEl.textContent = score;
+                movesEl.textContent = moves;
+                targetEl.textContent = targetScore;
+                comboEl.textContent = combo > 1 ? `x${combo}` : '0';
+                gameCoinsEl.textContent = coins;
+                currentLevelDisplay.textContent = currentLevel;
+
+                // Update Progress Bar
+                let percent = Math.min(100, Math.floor((score / targetScore) * 100));
+                progressBar.style.width = `${percent}%`;
+                progressPercent.textContent = `${percent}%`;
+            }
+            
+            function updatePowerupUI() {
+                document.querySelectorAll('.powerup-btn').forEach(btn => {
+                    const type = btn.dataset.powerup;
+                    const count = powerups[type] || 0;
+                    btn.querySelector('.powerup-count').textContent = count;
+                    btn.disabled = count <= 0;
+                    
+                    if (activePowerup === type) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
+
+            // --- Level & Game Initialization ---
+            function loadLevel(levelId) {
+                const level = LEVELS.find(l => l.id === levelId);
+                if (!level) {
+                    console.error(`Level ${levelId} not found!`);
+                    return;
+                }
+                
+                currentLevel = level.id;
+                moves = level.moves;
+                score = 0;
+                combo = 0;
+                targetScore = level.targetScore;
+                
+                // Update UI for new level
+                levelTitleEl.textContent = `Level ${level.id}: ${level.title}`;
+                levelObjectivesEl.innerHTML = ''; // Clear old objectives
+                if (level.objectives.score) {
+                    levelObjectivesEl.innerHTML += `<p>🎯 Target Score: ${level.objectives.score}</p>`;
+                }
+                // This is where you would add fruit-specific objectives
+                if (level.objectives['🍓']) {
+                     levelObjectivesEl.innerHTML += `<p>🍓 Collect 20 Strawberries</p>`;
+                }
+                
+                initGame();
+                showScreen('game');
+            }
+
+            function initGame() {
+                isProcessing = true;
+                selectedFruit = null;
+                board = [];
+                gameBoardEl.innerHTML = '';
+                
+                // Create board data and DOM
+                for (let r = 0; r < ROWS; r++) {
+                    const row = [];
+                    for (let c = 0; c < COLS; c++) {
+                        // Fill with random fruits, ensuring no 3-in-a-row
+                        let fruit;
+                        do {
+                            fruit = getRandomFruit();
+                        } while (
+                            (c >= 2 && fruit === row[c - 1] && fruit === row[c - 2]) ||
+                            (r >= 2 && fruit === board[r - 1][c] && fruit === board[r - 2][c])
+                        );
+                        row.push(fruit);
+                        createFruitCell(r, c, fruit);
+                    }
+                    board.push(row);
+                }
+                
+                updateGameStats();
+                updatePowerupUI();
+                isProcessing = false;
+            }
+
+            function createFruitCell(r, c, fruit) {
+                const cell = document.createElement('div');
+                cell.classList.add('fruit-cell');
+                cell.dataset.r = r;
+                cell.dataset.c = c;
+                cell.textContent = fruit;
+                cell.addEventListener('click', onFruitClick);
+                gameBoardEl.appendChild(cell);
+                return cell;
+            }
+            
+            function populateLevelSelect() {
+                levelsGridEl.innerHTML = '';
+                LEVELS.forEach(level => {
+                    const btn = document.createElement('button');
+                    btn.classList.add('w-20', 'h-20', 'flex', 'items-center', 'justify-center', 'font-bold', 'text-2xl', 'rounded-xl', 'btn-3d', 'transition');
+                    btn.textContent = level.id;
+                    
+                    if (level.id <= maxUnlockedLevel) {
+                        btn.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600');
+                        btn.onclick = () => loadLevel(level.id);
+                    } else {
+                        btn.classList.add('bg-gray-400', 'text-gray-700', 'level-locked');
+                        btn.disabled = true;
+                    }
+                    levelsGridEl.appendChild(btn);
+                });
+            }
+            
+            // --- Core Game Logic ---
+
+            function onFruitClick(event) {
+                if (isProcessing) return;
+
+                const cell = event.target.closest('.fruit-cell');
+                if (!cell) return;
+                
+                const r = parseInt(cell.dataset.r);
+                const c = parseInt(cell.dataset.c);
+                
+                // --- Handle Active Powerup ---
+                if (activePowerup) {
+                    usePowerup(r, c);
+                    return;
+                }
+
+                if (!selectedFruit) {
+                    // First fruit selected
+                    cell.classList.add('selected');
+                    selectedFruit = { r, c, element: cell };
+                } else {
+                    // Second fruit selected
+                    if (selectedFruit.r === r && selectedFruit.c === c) {
+                        // Clicked the same fruit, deselect it
+                        selectedFruit.element.classList.remove('selected');
+                        selectedFruit = null;
+                    } else if (isAdjacent(selectedFruit.r, selectedFruit.c, r, c)) {
+                        // It's an adjacent fruit, try to swap
+                        handleSwap(selectedFruit, { r, c, element: cell });
+                    } else {
+                        // Not adjacent, select this new fruit instead
+                        selectedFruit.element.classList.remove('selected');
+                        cell.classList.add('selected');
+                        selectedFruit = { r, c, element: cell };
+                    }
+                }
+            }
+            
+            async function handleSwap(fruit1, fruit2) {
+                isProcessing = true;
+                combo = 0; // Reset combo on a new move
+                selectedFruit.element.classList.remove('selected');
+                selectedFruit = null;
+                
+                swapBoardData(fruit1.r, fruit1.c, fruit2.r, fruit2.c);
+                swapCellContent(fruit1.element, fruit2.element);
+                
+                await sleep(100); // Wait for visual swap
+                
+                const matches = findAllMatches();
+                
+                if (matches.length > 0) {
+                    // Valid swap
+                    moves--;
+                    updateGameStats();
+                    await processMatches(matches);
+                } else {
+                    // Invalid swap, swap back
+                    fruit1.element.classList.add('invalid');
+                    fruit2.element.classList.add('invalid');
+                    await sleep(400); 
+                    fruit1.element.classList.remove('invalid');
+                    fruit2.element.classList.remove('invalid');
+                    
+                    swapBoardData(fruit1.r, fruit1.c, fruit2.r, fruit2.c);
+                    swapCellContent(fruit1.element, fruit2.element);
+                }
+                
+                isProcessing = false;
+                checkGameEnd();
+            }
+            
+            async function processMatches(matches) {
+                isProcessing = true;
+                combo++;
+                let matchScore = matches.length * 10 * combo; // Base score * combo
+                score += matchScore;
+                coins += matches.length; // 1 coin per fruit
+                
+                // Show combo text
+                if (combo > 1) {
+                    showComboText(`x${combo}`);
+                }
+                // Show score popup
+                const firstMatch = matches[0];
+                showScorePopup(`+${matchScore}`, firstMatch.r, firstMatch.c);
+
+                updateGameStats();
+                saveGameState(); // Save coin gain
+
+                matches.forEach(pos => {
+                    const cell = getCell(pos.r, pos.c);
+                    if (cell) {
+                        cell.classList.add('matched');
+                        board[pos.r][pos.c] = null;
+                    }
+                });
+                
+                await sleep(600); // Wait for 'explode-and-fade'
+                
+                // Remove matched cells' content
+                matches.forEach(pos => {
+                    const cell = getCell(pos.r, pos.c);
+                    if (cell) {
+                        cell.textContent = '';
+                        cell.classList.remove('matched');
+                    }
+                });
+                
+                await dropFruits();
+                await fillEmptyCells();
+
+                // --- Recursive Cascade ---
+                const newMatches = findAllMatches();
+                if (newMatches.length > 0) {
+                    await processMatches(newMatches); // Recurse
+                } else {
+                    // No new matches, end processing
+                    isProcessing = false;
+                    combo = 0;
+                    updateGameStats();
+                }
+            }
+            
+            async function dropFruits() {
+                for (let c = 0; c < COLS; c++) {
+                    let emptyRow = ROWS - 1;
+                    for (let r = ROWS - 1; r >= 0; r--) {
+                        if (board[r][c] !== null) {
+                            if (r !== emptyRow) {
+                                board[emptyRow][c] = board[r][c];
+                                board[r][c] = null;
+                                // Update DOM
+                                const cellToMove = getCell(r, c);
+                                const cellToFill = getCell(emptyRow, c);
+                                cellToFill.textContent = cellToMove.textContent;
+                                cellToMove.textContent = '';
+                            }
+                            emptyRow--;
+                        }
+                    }
+                }
+                await sleep(200);
+            }
+            
+            async function fillEmptyCells() {
+                let newFruitsAnimated = false;
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (board[r][c] === null) {
+                            const newFruit = getRandomFruit();
+                            board[r][c] = newFruit;
+                            const cell = getCell(r, c);
+                            cell.textContent = newFruit;
+                            cell.classList.add('new-fruit');
+                            newFruitsAnimated = true;
+                        }
+                    }
+                }
+                
+                if (newFruitsAnimated) {
+                    await sleep(500); // Wait for 'drop-bounce'
+                    document.querySelectorAll('.new-fruit').forEach(cell => {
+                        cell.classList.remove('new-fruit');
+                    });
+                }
+            }
+
+            function findAllMatches() {
+                const matches = new Set();
+                // Check horizontal
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS - 2; c++) {
+                        const fruit = board[r][c];
+                        if (fruit && fruit === board[r][c + 1] && fruit === board[r][c + 2]) {
+                            let matchLength = 3;
+                            while (c + matchLength < COLS && board[r][c + matchLength] === fruit) matchLength++;
+                            for (let i = 0; i < matchLength; i++) matches.add(`${r}-${c + i}`);
+                            c += matchLength - 1;
+                        }
+                    }
+                }
+                // Check vertical
+                for (let c = 0; c < COLS; c++) {
+                    for (let r = 0; r < ROWS - 2; r++) {
+                        const fruit = board[r][c];
+                        if (fruit && fruit === board[r + 1][c] && fruit === board[r + 2][c]) {
+                            let matchLength = 3;
+                            while (r + matchLength < ROWS && board[r + matchLength][c] === fruit) matchLength++;
+                            for (let i = 0; i < matchLength; i++) matches.add(`${r + i}-${c}`);
+                            r += matchLength - 1;
+                        }
+                    }
+                }
+                return Array.from(matches).map(id => {
+                    const [r, c] = id.split('-').map(Number);
+                    return { r, c };
+                });
+            }
+            
+            function findValidMove() {
+                // Check for horizontal swaps
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS - 1; c++) {
+                        swapBoardData(r, c, r, c + 1); // Test swap
+                        if (findAllMatches().length > 0) {
+                            swapBoardData(r, c, r, c + 1); // Swap back
+                            return [{r, c}, {r, c: c+1}];
+                        }
+                        swapBoardData(r, c, r, c + 1); // Swap back
+                    }
+                }
+                // Check for vertical swaps
+                for (let r = 0; r < ROWS - 1; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        swapBoardData(r, c, r + 1, c); // Test swap
+                        if (findAllMatches().length > 0) {
+                            swapBoardData(r, c, r + 1, c); // Swap back
+                            return [{r, c}, {r: r+1, c}];
+                        }
+                        swapBoardData(r, c, r + 1, c); // Swap back
+                    }
+                }
+                return null; // No valid moves
+            }
+
+            // --- Game End Logic ---
+            function checkGameEnd() {
+                if (isProcessing) return;
+
+                const win = score >= targetScore;
+                
+                if (win) {
+                    // LEVEL COMPLETE
+                    isProcessing = true;
+                    modalTitle.textContent = "LEVEL COMPLETE!";
+                    modalTitle.classList.remove('text-red-600');
+                    modalTitle.classList.add('text-green-600');
+                    modalSubtitle.textContent = "You reached the target score!";
+                    
+                    // Unlock next level
+                    if (currentLevel === maxUnlockedLevel) {
+                        maxUnlockedLevel++;
+                    }
+                    
+                    // Add bonus coins for winning
+                    coins += 100; // Win bonus
+                    saveGameState();
+                    
+                    modalNextBtn.textContent = "Next Level";
+                    modalNextBtn.onclick = () => {
+                        endGameModal.classList.add('hidden');
+                        loadLevel(currentLevel + 1);
+                    };
+                    
+                    // Check for last level
+                    if (currentLevel === LEVELS.length) {
+                        modalSubtitle.textContent = "You beat the final level!";
+                        modalNextBtn.textContent = "Back to Menu";
+                        modalNextBtn.onclick = () => showScreen('menu');
+                    }
+
+                    showEndGameModal();
+
+                } else if (moves <= 0) {
+                    // GAME OVER
+                    isProcessing = true;
+                    modalTitle.textContent = "GAME OVER!";
+                    modalTitle.classList.remove('text-green-600');
+                    modalTitle.classList.add('text-red-600');
+                    modalSubtitle.textContent = "You ran out of moves.";
+                    
+                    modalNextBtn.textContent = "Play Again";
+                    modalNextBtn.onclick = () => {
+                        endGameModal.classList.add('hidden');
+                        loadLevel(currentLevel); // Reload current level
+                    };
+                    showEndGameModal();
+                }
+                
+                // Also check for no more moves
+                if (!win && moves > 0 && findValidMove() === null) {
+                    // No moves left, auto-shuffle
+                    showComboText("No Moves! Shuffling...");
+                    // (Real game would have shuffle logic)
+                }
+            }
+            
+            function showEndGameModal() {
+                finalScoreEl.textContent = score;
+                // Calculate stars
+                let stars = 0;
+                if (score >= targetScore) stars = 1;
+                if (score >= targetScore * 1.25) stars = 2;
+                if (score >= targetScore * 1.5) stars = 3;
+                
+                starRatingEl.innerHTML = '';
+                for (let i = 0; i < 3; i++) {
+                    starRatingEl.innerHTML += i < stars ? '⭐' : '☆';
+                }
+                
+                endGameModal.classList.remove('hidden');
+            }
+
+            // --- Powerup Logic ---
+            function togglePowerup(type) {
+                if (activePowerup === type) {
+                    activePowerup = null; // Deactivate
+                } else if (powerups[type] > 0) {
+                    activePowerup = type; // Activate
+                }
+                updatePowerupUI();
+            }
+
+            async function usePowerup(r, c) {
+                if (!activePowerup || powerups[activePowerup] <= 0) return;
+                
+                isProcessing = true;
+                powerups[activePowerup]--;
+                const type = activePowerup;
+                activePowerup = null;
+                updatePowerupUI();
+                saveGameState();
+
+                let matchesToProcess = [];
+
+                if (type === 'bomb') {
+                    // 3x3 explosion
+                    showComboText('KABOOM!');
+                    for (let i = r - 1; i <= r + 1; i++) {
+                        for (let j = c - 1; j <= c + 1; j++) {
+                            if (i >= 0 && i < ROWS && j >= 0 && j < COLS) {
+                                matchesToProcess.push({r: i, c: j});
+                            }
+                        }
+                    }
+                } else if (type === 'lightning') {
+                    // Clear entire row and column
+                    showComboText('ZAP!');
+                    for (let i = 0; i < COLS; i++) matchesToProcess.push({r, c: i});
+                    for (let i = 0; i < ROWS; i++) matchesToProcess.push({r: i, c});
+                } else if (type === 'rainbow') {
+                    // Clear all fruits of one type
+                    showComboText('WOW!');
+                    const fruitType = board[r][c];
+                    for (let i = 0; i < ROWS; i++) {
+                        for (let j = 0; j < COLS; j++) {
+                            if (board[i][j] === fruitType) {
+                                matchesToProcess.push({r: i, c: j});
+                            }
+                        }
+                    }
+                } else if (type === 'shuffle') {
+                    // This powerup is special, doesn't need a click
+                    // Handled by its button listener
+                }
+                
+                // De-duplicate matches
+                const uniqueMatches = [...new Set(matchesToProcess.map(p => `${p.r}-${p.c}`))].map(s => {
+                    const [r, c] = s.split('-').map(Number);
+                    return {r, c};
+                });
+                
+                if (uniqueMatches.length > 0) {
+                    await processMatches(uniqueMatches);
+                }
+                
+                isProcessing = false;
+                checkGameEnd();
+            }
+            
+            async function useShuffle() {
+                if (powerups.shuffle <= 0 || isProcessing) return;
+                
+                isProcessing = true;
+                powerups.shuffle--;
+                updatePowerupUI();
+                saveGameState();
+                showComboText('SHUFFLE!');
+                
+                // Simple shuffle: collect all fruits, shuffle, re-place
+                let allFruits = [];
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        allFruits.push(board[r][c]);
+                    }
+                }
+                
+                // Fisher-Yates shuffle
+                for (let i = allFruits.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [allFruits[i], allFruits[j]] = [allFruits[j], allFruits[i]];
+                }
+                
+                let k = 0;
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        board[r][c] = allFruits[k];
+                        const cell = getCell(r, c);
+                        cell.textContent = allFruits[k];
+                        cell.classList.add('new-fruit');
+                        k++;
+                    }
+                }
+                
+                await sleep(500); // Wait for drop-in
+                document.querySelectorAll('.new-fruit').forEach(cell => {
+                    cell.classList.remove('new-fruit');
+                });
+                
+                // Clear any matches created by the shuffle
+                const newMatches = findAllMatches();
+                if (newMatches.length > 0) {
+                    await processMatches(newMatches);
+                }
+                
+                isProcessing = false;
+            }
+            
+            async function useHint() {
+                if (coins < HINT_COST || isProcessing) {
+                    showComboText(coins < HINT_COST ? "Not enough coins!" : "Processing...");
+                    return;
+                }
+                
+                isProcessing = true;
+                coins -= HINT_COST;
+                saveGameState();
+                updateGameStats();
+                
+                const move = findValidMove();
+                if (move) {
+                    const cell1 = getCell(move[0].r, move[0].c);
+                    const cell2 = getCell(move[1].r, move[1].c);
+                    cell1.classList.add('hint');
+                    cell2.classList.add('hint');
+                    
+                    await sleep(2400); // 3 pulses * 0.8s
+                    
+                    cell1.classList.remove('hint');
+                    cell2.classList.remove('hint');
+                } else {
+                    showComboText("No moves found!");
+                }
+                isProcessing = false;
+            }
+
+            // --- Helper Functions ---
+            function getRandomFruit() {
+                return FRUITS[Math.floor(Math.random() * FRUITS.length)];
+            }
+            function isAdjacent(r1, c1, r2, c2) {
+                return (Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2);
+            }
+            function swapBoardData(r1, c1, r2, c2) {
+                [board[r1][c1], board[r2][c2]] = [board[r2][c2], board[r1][c1]];
+            }
+            function swapCellContent(cell1, cell2) {
+                [cell1.textContent, cell2.textContent] = [cell2.textContent, cell1.textContent];
+            }
+            function getCell(r, c) {
+                return document.querySelector(`.fruit-cell[data-r="${r}"][data-c="${c}"]`);
+            }
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            function showScorePopup(text, r, c) {
+                const cell = getCell(r, c);
+                if (!cell) return;
+                
+                const popup = document.createElement('div');
+                popup.classList.add('score-popup');
+                popup.textContent = text;
+                // Position popup over the cell
+                popup.style.left = `${cell.offsetLeft + cell.offsetWidth / 2 - 15}px`;
+                popup.style.top = `${cell.offsetTop}px`;
+                
+                gameBoardEl.parentElement.appendChild(popup);
+                setTimeout(() => popup.remove(), 1000);
+            }
+
+            function showComboText(text) {
+                const comboText = document.createElement('div');
+                comboText.classList.add('mega-combo-text'); // Using your cool class
+                comboText.textContent = text;
+                document.body.appendChild(comboText);
+                setTimeout(() => comboText.remove(), 1000);
+            }
+
+            // --- Event Listeners ---
+            document.getElementById('btn-play').addEventListener('click', () => loadLevel(maxUnlockedLevel));
+            document.getElementById('btn-levels').addEventListener('click', () => showScreen('levels'));
+            document.getElementById('btn-shop').addEventListener('click', () => showScreen('shop'));
+            document.getElementById('btn-achievements').addEventListener('click', () => showScreen('achievements'));
+            document.getElementById('btn-settings').addEventListener('click', () => showScreen('settings'));
+            document.getElementById('btn-back-to-menu').addEventListener('click', () => showScreen('menu'));
+            document.getElementById('btn-close-levels').addEventListener('click', () => showScreen('menu'));
+            document.getElementById('btn-reset-progress').addEventListener('click', resetGameProgress);
+            
+            // Close modal buttons
+            document.querySelectorAll('.btn-close-modal').forEach(btn => {
+                btn.addEventListener('click', () => showScreen('menu'));
+            });
+            
+            // End Game Modal buttons
+            modalMenuBtn.addEventListener('click', () => {
+                endGameModal.classList.add('hidden');
+                showScreen('menu');
+            });
+            
+            // Powerup buttons
+            document.querySelectorAll('.powerup-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const type = btn.dataset.powerup;
+                    if (type === 'shuffle') {
+                        useShuffle(); // Shuffle is immediate
+                    } else {
+                        togglePowerup(type); // Others are click-based
+                    }
+                });
+            });
+            
+            // Hint button
+            hintButton.addEventListener('click', useHint);
+
+            // --- Start Game ---
+            loadGameState(); // Load saved data first
+            showScreen('menu'); // Start at the main menu
+        });
+    </script>
+</body>
+</html>
